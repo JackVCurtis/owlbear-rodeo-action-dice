@@ -1,0 +1,546 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.app__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.app__header h1 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.app__headmeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app__role {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+/* Secondary to the combat controls: quieter than the primary/danger buttons. */
+.app__rules {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  border-color: color-mix(in srgb, currentColor 18%, transparent);
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  opacity: 0.8;
+}
+
+.app__rules:hover {
+  opacity: 1;
+}
+
+/* --- Rules reference overlay --- */
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Bound to the popover viewport so the body scrolls, not the whole page. */
+  max-height: calc(100vh - 96px);
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.rules__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rules__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.rules__close {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+}
+
+.rules__body {
+  overflow-y: auto;
+  line-height: 1.5;
+  font-size: 0.82rem;
+  max-width: 42ch;
+}
+
+.rules__body h1 {
+  font-size: 1.05rem;
+  margin: 0 0 0.4em;
+}
+
+.rules__body h2 {
+  font-size: 0.95rem;
+  margin: 1.1em 0 0.35em;
+}
+
+.rules__body h3 {
+  font-size: 0.85rem;
+  margin: 0.9em 0 0.3em;
+}
+
+.rules__body p {
+  margin: 0 0 0.7em;
+}
+
+.rules__body ul {
+  margin: 0 0 0.7em;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.rules__body li {
+  padding-left: 0.15em;
+}
+
+.rules__body code {
+  font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  white-space: nowrap;
+}
+
+.app__phase {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 8px;
+}
+
+.app__phase-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+
+.app__phase strong {
+  font-size: 1rem;
+}
+
+.app__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.app__danger {
+  border-color: color-mix(in srgb, #e5484d 60%, transparent);
+}
+
+.app__primary {
+  font-weight: 600;
+  border-color: color-mix(in srgb, #3e63dd 60%, transparent);
+}
+
+.app__hint {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin: 0;
+}
+
+/* Shared form controls */
+input,
+select {
+  font: inherit;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  color: inherit;
+  min-width: 0;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A card-like block shared by the setup rows, trays, and reveals */
+.row,
+.tray,
+.reveal,
+.phase {
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* --- Roster setup --- */
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setup__title,
+.ended__title {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.setup__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row__head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.row__name {
+  flex: 1;
+}
+
+.row__remove {
+  padding: 2px 8px;
+  line-height: 1;
+}
+
+.row__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.field input,
+.field select {
+  width: 5.5rem;
+}
+
+.setup__add,
+.setup__adv {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.setup__adv {
+  padding-top: 4px;
+  border-top: 1px dashed color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.setup__adv-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  align-self: center;
+}
+
+.setup__start {
+  font-weight: 600;
+}
+
+/* --- Assignment --- */
+.assign {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.assign__status {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.tray--locked {
+  opacity: 0.75;
+}
+
+/* A non-owned combatant's public row during assignment (no hidden dice shown). */
+.statusrow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px dashed color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.statusrow--locked {
+  border-style: solid;
+}
+
+.statusrow__meta {
+  font-size: 0.72rem;
+  opacity: 0.65;
+}
+
+.statusrow__lock {
+  margin-left: auto;
+  font-size: 0.72rem;
+  opacity: 0.8;
+}
+
+.statusrow--locked .statusrow__lock {
+  color: #3fa45b;
+  opacity: 1;
+}
+
+.tray__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tray__meta,
+.reveal__meta {
+  font-size: 0.72rem;
+  opacity: 0.65;
+}
+
+.tray__lock {
+  font-size: 0.7rem;
+  color: #3fa45b;
+  margin-left: auto;
+}
+
+.tray__dice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.die {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.die__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.4rem;
+  text-align: center;
+}
+
+.die select {
+  font-size: 0.7rem;
+  padding: 2px 4px;
+}
+
+.tray__empty {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.tray__tokens {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+}
+
+.tray__tokens-label {
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.65rem;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stepper button {
+  padding: 0 8px;
+}
+
+.stepper__n {
+  min-width: 1rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.tray__bonustoken {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tray__summary {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+.tray__lockbtn {
+  align-self: flex-start;
+}
+
+/* --- Resolution --- */
+.resolve {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.resolve__reveals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reveal {
+  gap: 4px;
+}
+
+.reveal__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.reveal__body {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.reveal__dropped {
+  font-size: 0.72rem;
+  color: #e5484d;
+}
+
+.reveal__mismatch {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #e5484d;
+}
+
+.phase__title {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.phase__hint {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin: 0;
+}
+
+.dmgrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.dmgrow__name {
+  min-width: 4rem;
+  font-weight: 600;
+}
+
+.dmgrow__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.dmgrow__field input {
+  width: 3.5rem;
+}
+
+.dmgrow__thr {
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
+.saverow {
+  display: flex;
+  gap: 6px;
+}
+
+.saverow__desc {
+  flex: 1;
+}
+
+.phase__go {
+  align-self: flex-start;
+  font-weight: 600;
+}
+
+/* --- Ended --- */
+.ended {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ended__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.85rem;
+}

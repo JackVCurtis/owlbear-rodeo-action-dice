@@ -1,0 +1,30 @@
+{
+  "name": "action-dice-combat",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Owlbear Rodeo extension: simultaneous-resolution Action Dice combat for D&D 5e",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@owlbear-rodeo/sdk": "^3.1.0",
+    "@xstate/react": "^6.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "xstate": "^5.32.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
+  }
+}
