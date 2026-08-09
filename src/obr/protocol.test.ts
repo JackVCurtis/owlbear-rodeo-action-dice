@@ -94,8 +94,14 @@ describe('commit–reveal protocol across two clients', () => {
     expect(ownedIds(combatants, 'alice').sort()).toEqual(['a', 'c']);
     expect(ownedIds(combatants, 'gm')).toEqual(['b']);
 
-    const mirror = toMirroredCombat(3, 2, 'assignment', combatants);
-    expect(mirror).toEqual({ sessionId: 3, round: 2, phase: 'assignment', combatants });
+    const mirror = toMirroredCombat(3, 2, 'assignment', combatants, { round: 1, byCombatant: { a: [15] } });
+    expect(mirror).toEqual({
+      sessionId: 3,
+      round: 2,
+      phase: 'assignment',
+      combatants,
+      lastSavesSucceeded: { round: 1, byCombatant: { a: [15] } },
+    });
   });
 });
 

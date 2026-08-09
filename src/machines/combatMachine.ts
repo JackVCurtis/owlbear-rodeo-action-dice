@@ -2,6 +2,7 @@ import { setup, assign } from 'xstate';
 import type {
   CombatantId,
   CombatantPublic,
+  DieValue,
   HitDieSides,
   PersistentEffect,
 } from '../rules/types';
@@ -92,6 +93,13 @@ export interface CombatContext {
   round: number;
   persistentEffects: PersistentEffect[];
   advantagePools: AdvantagePools;
+  // The Save dice each combatant consumed on a SUCCESSFUL save in the most
+  // recently resolved round, tagged with THAT round. Set on `saves.resolved` and
+  // deliberately NOT cleared by the round increment, so it survives into the next
+  // round's assignment for each owning client to settle against (a die listed here
+  // leaves its pool; unlisted save dice carry). Reset only by the next
+  // `saves.resolved` or a fresh machine.
+  lastSavesSucceeded: { round: number; byCombatant: Record<CombatantId, DieValue[]> } | null;
 }
 
 export type CombatEvent =
@@ -99,7 +107,7 @@ export type CombatEvent =
   | { type: 'combatant.lockedIn'; id: CombatantId }
   | { type: 'damage.resolved'; damage: Record<CombatantId, number>; healing?: Record<CombatantId, number> }
   | { type: 'movement.resolved' }
-  | { type: 'saves.resolved'; effects: PersistentEffect[] }
+  | { type: 'saves.resolved'; effects: PersistentEffect[]; savesSucceeded: Record<CombatantId, DieValue[]> }
   | { type: 'advantage.spent'; side: keyof AdvantagePools }
   | { type: 'combat.ended' };
 
@@ -126,7 +134,13 @@ export const combatMachine = setup({
       for (const e of params.roster) {
         combatants[e.id] = seedCombatant(e);
       }
-      return { combatants, round: 1, persistentEffects: [], advantagePools: params.advantagePools };
+      return {
+        combatants,
+        round: 1,
+        persistentEffects: [],
+        advantagePools: params.advantagePools,
+        lastSavesSucceeded: null,
+      };
     }),
     // Consume one die from a side's shared adv/disadv pool. The count is public;
     // which value was drawn is resolved client-side (src/rules/advantage.ts).
@@ -167,6 +181,15 @@ export const combatMachine = setup({
     addEffects: assign(({ context }, params: { effects: PersistentEffect[] }) => ({
       persistentEffects: [...context.persistentEffects, ...params.effects],
     })),
+    // Record which Save dice succeeded this round, tagged with the CURRENT round
+    // (before the carryover increment). Persists across the round increment so the
+    // next round's assignment can route each combatant's consumed save dice to its
+    // owning client's settle.
+    recordSavesSucceeded: assign(
+      ({ context }, params: { savesSucceeded: Record<CombatantId, DieValue[]> }) => ({
+        lastSavesSucceeded: { round: context.round, byCombatant: params.savesSucceeded },
+      }),
+    ),
     incrementRound: assign(({ context }) => ({ round: context.round + 1 })),
     // End-of-combat: every downed PC (isPC && out of Action Dice) loses HP per
     // src/rules/downed.ts. Non-PCs and PCs still standing are left untouched.
@@ -184,7 +207,13 @@ export const combatMachine = setup({
   },
 }).createMachine({
   id: 'combat',
-  context: { combatants: {}, round: 0, persistentEffects: [], advantagePools: { party: 0, monsters: 0 } },
+  context: {
+    combatants: {},
+    round: 0,
+    persistentEffects: [],
+    advantagePools: { party: 0, monsters: 0 },
+    lastSavesSucceeded: null,
+  },
   initial: 'idle',
   states: {
     idle: {
@@ -258,7 +287,13 @@ export const combatMachine = setup({
           on: {
             'saves.resolved': {
               target: 'carryover',
-              actions: [{ type: 'addEffects', params: ({ event }) => ({ effects: event.effects }) }],
+              actions: [
+                { type: 'addEffects', params: ({ event }) => ({ effects: event.effects }) },
+                {
+                  type: 'recordSavesSucceeded',
+                  params: ({ event }) => ({ savesSucceeded: event.savesSucceeded }),
+                },
+              ],
             },
           },
         },

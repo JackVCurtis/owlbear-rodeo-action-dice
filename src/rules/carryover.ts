@@ -4,14 +4,18 @@ export interface RoundOutcome {
   assignment: Assignment;
   // Did the assigned Reaction die get consumed this round (e.g. opportunity attack)?
   reactionUsed: boolean;
-  // Which Save dice were spent during the Saves phase (multiset drawn from assignment.saves).
-  savesSpent: readonly DieValue[];
+  // Save dice consumed by a SUCCESSFUL save this round (multiset drawn from
+  // assignment.saves). A save die is consumed only on success — a die used on a
+  // failed save, or left unused, is NOT listed here and carries over.
+  savesSucceeded: readonly DieValue[];
 }
 
 export interface RoundSettlement {
-  // Dice that remain available for the next round (unused Save + unused Reaction), descending.
+  // Dice available again next round (carried Save + unused Reaction), descending. Save
+  // dice carry unless consumed by a successful save — failed and unused saves both carry.
   carried: DieValue[];
-  // Dice consumed this round and removed from the pool (Action, Bonus, used Reaction, spent Saves).
+  // Dice consumed this round and removed from the pool (Action, Bonus, used Reaction,
+  // and Save dice consumed by a successful save).
   spent: DieValue[];
 }
 
@@ -28,10 +32,11 @@ export function subtractMultiset(from: readonly DieValue[], toRemove: readonly D
 const descending = (a: number, b: number): number => b - a;
 
 // Partition this round's assigned dice into what carries over vs. what is spent.
-// Spec: only unused Save and Reaction dice carry; assigned Action/Bonus dice are
-// spent regardless of use.
+// Spec: Action/Bonus dice are spent regardless of use; the Reaction die and Save
+// dice carry unless consumed. A Save die is consumed ONLY by a successful save — a
+// die used on a failed save, or left unused, carries over.
 export function settleRound(outcome: RoundOutcome): RoundSettlement {
-  const { assignment, reactionUsed, savesSpent } = outcome;
+  const { assignment, reactionUsed, savesSucceeded } = outcome;
   const spent: DieValue[] = [];
   const carried: DieValue[] = [];
 
@@ -48,9 +53,10 @@ export function settleRound(outcome: RoundOutcome): RoundSettlement {
     else carried.push(assignment.reaction.value);
   }
 
-  // Save dice: spent ones leave, the rest carry.
-  carried.push(...subtractMultiset(assignment.saves, savesSpent));
-  spent.push(...savesSpent);
+  // Save dice: only those consumed by a successful save leave the pool; failed and
+  // unused save dice both carry.
+  carried.push(...subtractMultiset(assignment.saves, savesSucceeded));
+  spent.push(...savesSucceeded);
 
   return {
     carried: carried.sort(descending),

@@ -12,17 +12,18 @@ import {
   ownedIds,
   type StoredReveal,
 } from '../obr/protocol';
-import type { Assignment, CombatantId, CombatantPublic } from '../rules/types';
+import type { Assignment, CombatantId, CombatantPublic, DieValue } from '../rules/types';
 import type { RoundOutcome } from '../rules/carryover';
 import { rollDice, lowestDiceIndices } from './dice';
 import { isAssignment, isResolving, type PhaseName } from './phase';
 import type { CharActor } from './DiceTray';
 
-// MVP settle: this client does not track opportunity attacks or in-phase save
-// spending, so the Reaction die and all Save dice count as unused and carry over
-// (Action/Bonus dice are always spent). Mirrors the rules-layer settleRound spec.
-function buildOutcome(assignment: Assignment): RoundOutcome {
-  return { assignment, reactionUsed: false, savesSpent: [] };
+// Settle one owned combatant for the round just resolved. Opportunity attacks aren't
+// tracked yet, so the Reaction die always carries; Action/Bonus dice are always spent.
+// The GM marks which Save dice succeeded, so `savesSucceeded` are consumed (leave the
+// pool) while failed/unused Save dice carry. Mirrors the rules-layer settleRound spec.
+function buildOutcome(assignment: Assignment, savesSucceeded: DieValue[]): RoundOutcome {
+  return { assignment, reactionUsed: false, savesSucceeded };
 }
 
 // A revealed assignment as seen by this client, plus whether its plaintext+salt
@@ -68,6 +69,7 @@ export function useHiddenDice({
   round,
   phase,
   combatants,
+  lastSavesSucceeded,
 }: {
   self: PlayerInfo;
   sync: CombatSync;
@@ -75,6 +77,7 @@ export function useHiddenDice({
   round: number;
   phase: PhaseName;
   combatants: Record<CombatantId, CombatantPublic>;
+  lastSavesSucceeded: { round: number; byCombatant: Record<CombatantId, DieValue[]> } | null;
 }): HiddenDice {
   const [charActors, setCharActors] = useState<Record<CombatantId, CharActor>>({});
   const [allCommitments, setAllCommitments] = useState<Commitment[]>([]);
@@ -209,13 +212,19 @@ export function useHiddenDice({
       const actor = charActorsRef.current[id];
       const snap = actor?.getSnapshot();
       if (snap?.matches('revealed')) {
-        actor.send({ type: 'round.next', outcome: buildOutcome(snap.context.assignment) });
+        // The settle at round R's assignment resolves the round just ended (R-1), so
+        // match lastSavesSucceeded to R-1; unmatched/absent → nothing consumed (all carry).
+        const succeeded =
+          lastSavesSucceeded && lastSavesSucceeded.round === round - 1
+            ? (lastSavesSucceeded.byCombatant[id] ?? [])
+            : [];
+        actor.send({ type: 'round.next', outcome: buildOutcome(snap.context.assignment, succeeded) });
       }
     }
     revealAccum.current = [];
     setReveals({});
     setBroken(new Set());
-  }, [phase, round, owned]);
+  }, [phase, round, owned, lastSavesSucceeded]);
 
   const lock = (id: CombatantId): void => {
     const actor = charActorsRef.current[id];

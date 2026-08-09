@@ -62,7 +62,7 @@ describe('characterMachine', () => {
     expect(actor.getSnapshot().status).toBe('done');
   });
 
-  it('settles a round: spends action/bonus/used-save dice, carries the rest', () => {
+  it('settles a round: spends action/bonus and successful-save dice, carries the rest', () => {
     const actor = started();
     actor.send({ type: 'assignment.lockedIn' });
     actor.send({ type: 'reveal' });
@@ -76,10 +76,10 @@ describe('characterMachine', () => {
           saves: [15, 9],
         },
         reactionUsed: false,
-        savesSpent: [15],
+        savesSucceeded: [15],
       },
     });
-    // spent {20,18,15} leave the pool; unused save 9 + reaction 3 carry.
+    // spent {20,18,15} leave the pool (save 15 succeeded); unused save 9 + reaction 3 carry.
     expect(actor.getSnapshot().matches('assigning')).toBe(true);
     expect(actor.getSnapshot().context.pool).toEqual([12, 9, 3]);
     expect(actor.getSnapshot().context.carriedDice).toEqual([9, 3]);

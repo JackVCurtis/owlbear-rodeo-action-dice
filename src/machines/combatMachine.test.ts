@@ -29,7 +29,7 @@ describe('combatMachine', () => {
     expect(actor.getSnapshot().matches({ round: 'resolveDamage' })).toBe(true);
 
     // Ordering invariant: a later phase's event is ignored until its turn.
-    actor.send({ type: 'saves.resolved', effects: [] });
+    actor.send({ type: 'saves.resolved', effects: [], savesSucceeded: {} });
     expect(actor.getSnapshot().matches({ round: 'resolveDamage' })).toBe(true);
 
     actor.send({ type: 'damage.resolved', damage: {}, healing: {} });
@@ -39,12 +39,34 @@ describe('combatMachine', () => {
     expect(actor.getSnapshot().matches({ round: 'resolveSaves' })).toBe(true);
 
     const prone = { id: 'e1', source: 'b', target: 'a', description: 'prone', appliedRound: 1 };
-    actor.send({ type: 'saves.resolved', effects: [prone] });
+    actor.send({ type: 'saves.resolved', effects: [prone], savesSucceeded: {} });
     // carryover → back to assignment, round incremented, locks cleared, effect persisted
     expect(actor.getSnapshot().matches({ round: 'assignment' })).toBe(true);
     expect(actor.getSnapshot().context.round).toBe(2);
     expect(actor.getSnapshot().context.combatants.a.lockedIn).toBe(false);
     expect(actor.getSnapshot().context.persistentEffects).toHaveLength(1);
+  });
+
+  it('records saves succeeded for the resolved round and persists it across the increment', () => {
+    const actor = createActor(combatMachine);
+    actor.start();
+    actor.send({ type: 'combat.started', roster });
+    expect(actor.getSnapshot().context.lastSavesSucceeded).toBeNull();
+
+    // Round 1: drive to the saves phase and mark a's die 15 as a successful save.
+    actor.send({ type: 'combatant.lockedIn', id: 'a' });
+    actor.send({ type: 'combatant.lockedIn', id: 'b' });
+    actor.send({ type: 'damage.resolved', damage: {}, healing: {} });
+    actor.send({ type: 'movement.resolved' });
+    actor.send({ type: 'saves.resolved', effects: [], savesSucceeded: { a: [15] } });
+
+    // Now at round 2's assignment — lastSavesSucceeded still tags the RESOLVED round (1).
+    expect(actor.getSnapshot().matches({ round: 'assignment' })).toBe(true);
+    expect(actor.getSnapshot().context.round).toBe(2);
+    expect(actor.getSnapshot().context.lastSavesSucceeded).toEqual({
+      round: 1,
+      byCombatant: { a: [15] },
+    });
   });
 
   it('seeds a mixed roster: monster from CR, multiclass PC from highest hit die', () => {
@@ -101,7 +123,7 @@ describe('combatMachine', () => {
     expect(actor.getSnapshot().context.combatants.a.outOfCombat).toBe(true);
 
     actor.send({ type: 'movement.resolved' });
-    actor.send({ type: 'saves.resolved', effects: [] });
+    actor.send({ type: 'saves.resolved', effects: [], savesSucceeded: {} });
     // carryover: only b active → combatShouldEnd → combatEnded (final).
     expect(actor.getSnapshot().value).toBe('combatEnded');
     expect(actor.getSnapshot().status).toBe('done');
@@ -121,7 +143,7 @@ describe('combatMachine', () => {
     // 11 damage breaks a's threshold (10) → lose PB(2) → pool 0 → out of combat (downed).
     actor.send({ type: 'damage.resolved', damage: { a: 11 }, healing: {} });
     actor.send({ type: 'movement.resolved' });
-    actor.send({ type: 'saves.resolved', effects: [] });
+    actor.send({ type: 'saves.resolved', effects: [], savesSucceeded: {} });
 
     // carryover → only b active → combatEnded (final) → reconcileDownedHp fires.
     expect(actor.getSnapshot().value).toBe('combatEnded');

@@ -12,7 +12,7 @@ describe('settleRound', () => {
         saves: [15, 9],
       },
       reactionUsed: false,
-      savesSpent: [],
+      savesSucceeded: [],
     });
     // Action(18) + Bonus(11) are spent regardless of use; only unused Save + Reaction carry.
     expect(settlement.carried).toEqual([15, 9, 7]);
@@ -31,7 +31,7 @@ describe('settleRound', () => {
         saves: [],
       },
       reactionUsed: false,
-      savesSpent: [],
+      savesSucceeded: [],
     });
     expect(settlement.spent).toEqual([20, 14]);
     expect(settlement.carried).toEqual([]);
@@ -41,27 +41,39 @@ describe('settleRound', () => {
     const settlement = settleRound({
       assignment: { ...emptyAssignment(), reaction: { kind: 'die', value: 12 } },
       reactionUsed: true,
-      savesSpent: [],
+      savesSucceeded: [],
     });
     expect(settlement.carried).toEqual([]);
     expect(settlement.spent).toEqual([12]);
   });
 
-  it('spends only the saves that were used, carrying the rest (multiset-aware)', () => {
+  it('consumes only successful saves, carrying the rest (multiset-aware)', () => {
     const settlement = settleRound({
       assignment: { ...emptyAssignment(), saves: [12, 12, 8] },
       reactionUsed: false,
-      savesSpent: [12],
+      savesSucceeded: [12],
     });
     expect(settlement.carried).toEqual([12, 8]);
     expect(settlement.spent).toEqual([12]);
+  });
+
+  it('returns a save die used on a FAILED save (only successful saves are consumed)', () => {
+    const settlement = settleRound({
+      // 16 succeeded (consumed); 10 was used but the save FAILED; 4 was never used.
+      assignment: { ...emptyAssignment(), saves: [16, 10, 4] },
+      reactionUsed: false,
+      savesSucceeded: [16],
+    });
+    // Both the failed-save die (10) and the unused die (4) carry over.
+    expect(settlement.carried).toEqual([10, 4]);
+    expect(settlement.spent).toEqual([16]);
   });
 
   it('ignores token slots (in the Action list) and an empty assignment', () => {
     const settlement = settleRound({
       assignment: { ...emptyAssignment(), action: [{ kind: 'token' }] },
       reactionUsed: false,
-      savesSpent: [],
+      savesSucceeded: [],
     });
     expect(settlement.carried).toEqual([]);
     expect(settlement.spent).toEqual([]);

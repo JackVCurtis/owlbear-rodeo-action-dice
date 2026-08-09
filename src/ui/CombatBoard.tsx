@@ -1,6 +1,6 @@
 import type { AdvantagePools, CombatEvent, RosterEntry } from '../machines/combatMachine';
 import type { CombatSync, PlayerInfo } from '../obr/sync';
-import type { CombatantId, CombatantPublic } from '../rules/types';
+import type { CombatantId, CombatantPublic, DieValue } from '../rules/types';
 import { DiceTray } from './DiceTray';
 import { ResolutionPanel } from './ResolutionPanel';
 import { RevealList } from './RevealList';
@@ -19,6 +19,7 @@ export function CombatBoard({
   round,
   phase,
   combatants,
+  lastSavesSucceeded,
   players,
   send,
   onStart,
@@ -31,6 +32,7 @@ export function CombatBoard({
   round: number;
   phase: PhaseName;
   combatants: Record<CombatantId, CombatantPublic>;
+  lastSavesSucceeded: { round: number; byCombatant: Record<CombatantId, DieValue[]> } | null;
   players?: PlayerInfo[];
   send?: (event: CombatEvent) => void;
   onStart?: (roster: RosterEntry[], advantagePools: AdvantagePools) => void;
@@ -44,6 +46,7 @@ export function CombatBoard({
     round,
     phase,
     combatants,
+    lastSavesSucceeded,
   });
 
   const all = Object.values(combatants);
@@ -86,7 +89,9 @@ export function CombatBoard({
       {isResolving(phase) && (
         <section className="resolve">
           <RevealList combatants={combatants} reveals={reveals} broken={broken} />
-          {isGM && send && <ResolutionPanel phase={phase} round={round} combatants={combatants} send={send} />}
+          {isGM && send && (
+            <ResolutionPanel phase={phase} round={round} combatants={combatants} reveals={reveals} send={send} />
+          )}
         </section>
       )}
 

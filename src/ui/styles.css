@@ -517,6 +517,49 @@ button:disabled {
   opacity: 0.6;
 }
 
+.saveresolve {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.saveresolve__name {
+  min-width: 4rem;
+  font-weight: 600;
+}
+
+.saveresolve__dice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.savemark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 4px;
+}
+
+.savemark--on {
+  border-color: #30a46c;
+  background: rgba(48, 164, 108, 0.15);
+}
+
+.savemark__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.savemark__label {
+  opacity: 0.7;
+}
+
 .saverow {
   display: flex;
   gap: 6px;

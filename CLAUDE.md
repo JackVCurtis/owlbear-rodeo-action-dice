@@ -76,9 +76,9 @@ Glossary: *PB* = proficiency bonus. *Action Dice* = a character's pre-rolled hid
       - `ASSUMPTION:` "Exceeds" is strict (> threshold, not ≥).
       - **DECIDED:** Multiclass / mixed hit dice — use the **highest hit die** among the character's classes.
    2. **Movement.** Simultaneous; characters may move through each other during this phase. Opportunity attacks resolve only if a Reaction die was assigned to them.
-   3. **Saves.** Targets of spells/abilities spend dice from their Save pool **in descending order** (highest die first). All spell effects and conditions (e.g. prone) roll over to the next round; the exception is **direct/forced movement**, which applies immediately.
-4. **Carryover.** Unused **Save pool** dice and unused **Reaction** dice carry over to the next round.
-   - **DECIDED:** Assigned-but-unused Action and Bonus Action dice are **spent regardless**; only Save and Reaction dice carry.
+   3. **Saves.** Targets of spells/abilities use dice from their Save pool **in descending order** (highest die first) to attempt saving throws. A Save die is **consumed only if its save succeeds**; a die used on a **failed** save, or left unused, returns to the pool and carries to the next round (so a forced save can't cost a die *and* deal damage on a failure). All spell effects and conditions (e.g. prone) roll over to the next round; the exception is **direct/forced movement**, which applies immediately.
+4. **Carryover.** **Save** dice and unused **Reaction** dice carry over to the next round — a Save die is lost only when consumed by a **successful save** (see above), so failed and unused Save dice both return to the pool.
+   - **DECIDED:** Assigned-but-unused Action and Bonus Action dice are **spent regardless**; the Reaction die carries unless used, and Save dice carry unless consumed by a successful save.
 
 ### Ending combat
 - Combat ends when all aggressive characters are down or have fled.

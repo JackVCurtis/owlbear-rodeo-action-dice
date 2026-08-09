@@ -1,4 +1,4 @@
-import type { Assignment, CombatantId, CombatantPublic } from '../rules/types';
+import type { Assignment, CombatantId, CombatantPublic, DieValue } from '../rules/types';
 import { computeCommitment, generateSalt, verifyCommitment } from './commit';
 import type { CombatSync, Commitment, MirroredCombat, RevealPayload } from './sync';
 import { getPluginId } from './ids';
@@ -79,8 +79,9 @@ export function toMirroredCombat(
   round: number,
   phase: string,
   combatants: Record<CombatantId, CombatantPublic>,
+  lastSavesSucceeded: { round: number; byCombatant: Record<CombatantId, DieValue[]> } | null,
 ): MirroredCombat {
-  return { sessionId, round, phase, combatants };
+  return { sessionId, round, phase, combatants, lastSavesSucceeded };
 }
 
 // Which combatants a given client controls (owns the hidden dice of).

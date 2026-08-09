@@ -1,4 +1,4 @@
-import type { Assignment, CombatantId, CombatantPublic } from '../rules/types';
+import type { Assignment, CombatantId, CombatantPublic, DieValue } from '../rules/types';
 
 export type CombatRole = 'GM' | 'PLAYER';
 
@@ -34,6 +34,10 @@ export interface MirroredCombat {
   round: number;
   phase: string;
   combatants: Record<CombatantId, CombatantPublic>;
+  // The Save dice each combatant consumed on a successful save in the most recently
+  // resolved round (tagged with that round). Carried in the mirror so a player's
+  // owning client can settle its hidden pool against it in the next round.
+  lastSavesSucceeded: { round: number; byCombatant: Record<CombatantId, DieValue[]> } | null;
 }
 
 // The seam between the pure machines and OBR transport. Commit–reveal: at lock-in

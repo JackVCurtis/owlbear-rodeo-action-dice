@@ -44,10 +44,10 @@ Once every active combatant has locked in, all choices are revealed at once. Eac
 ### 3. Resolution — strictly Damage → Movement → Saves
 1. **Damage.** Total the damage each character takes this round. Healing received this round raises that character's threshold for this round only. If total damage **exceeds** the threshold (strictly greater than), the character removes **`proficiency bonus` Action Dice of their choice** from their pool. A character reduced to **zero Action Dice is out of combat**.
 2. **Movement.** Movement is simultaneous; characters may move through one another. An **opportunity attack** happens only if a Reaction die was assigned to it.
-3. **Saves.** Targets spend dice from their Save pool in **descending order** (highest first). Spell effects and conditions (e.g. prone) carry into the next round; the exception is **direct/forced movement**, which applies immediately.
+3. **Saves.** Targets use dice from their Save pool in **descending order** (highest first) to make saving throws. A Save die is **spent only if the save succeeds** — if it fails, or you don't use it, the die returns to your pool and carries to the next round. (This keeps a spell that forces a save from costing you a die *and* dealing damage when you fail.) Spell effects and conditions (e.g. prone) carry into the next round; the exception is **direct/forced movement**, which applies immediately.
 
 ### 4. Carryover
-Unused **Save** and **Reaction** dice carry over to the next round. Dice assigned to your Action or Bonus Action are **spent whether or not they were used**.
+Your **Reaction** die carries over unless you used it, and a **Save** die carries over unless it was consumed by a successful save — so unused and failed-save dice both come back. Dice assigned to your Action or Bonus Action are **spent whether or not they were used**.
 
 ## Ending combat
 Combat ends when at most one combatant is still in the fight — a stand-in for "all enemies are down or have fled." Any **downed** player character (one reduced to **zero Action Dice**) loses `floor(current HP / 2) + proficiency bonus` hit points as they recover.
@@ -62,4 +62,4 @@ The extension automates the hidden-dice bookkeeping and enforces the structure:
 
 You still adjudicate at the table what the extension does not model: how much damage each attack deals (the GM enters the totals), actual positioning and movement, whether an opportunity attack lands, and the effects of saves and spells. Advantage / disadvantage pool sizes are tracked; applying them to a given roll is done at the table.
 
-**Current simplification:** opportunity-attack use and in-round save spending are not tracked yet, so every unused Reaction and Save die carries over.
+**Current simplification:** opportunity-attack use and save success/failure aren't tracked yet, so every Reaction and Save die currently carries over regardless.

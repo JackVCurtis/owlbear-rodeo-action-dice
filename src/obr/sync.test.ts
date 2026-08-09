@@ -88,8 +88,14 @@ describe('FakeSync via a shared room', () => {
     pc.subscribeCombat((s) => snapshots.push(s));
     expect(snapshots).toEqual([null]); // replayed initial state
 
-    await gm.mirrorCombat({ sessionId: 1, round: 2, phase: 'reveal', combatants: {} });
-    expect(snapshots.at(-1)).toEqual({ sessionId: 1, round: 2, phase: 'reveal', combatants: {} });
+    await gm.mirrorCombat({ sessionId: 1, round: 2, phase: 'reveal', combatants: {}, lastSavesSucceeded: null });
+    expect(snapshots.at(-1)).toEqual({
+      sessionId: 1,
+      round: 2,
+      phase: 'reveal',
+      combatants: {},
+      lastSavesSucceeded: null,
+    });
   });
 
   it('clearCombat wipes commitments + mirror and re-emits [] / null to all clients', async () => {
@@ -104,7 +110,7 @@ describe('FakeSync via a shared room', () => {
     pc.subscribeCombat((s) => (combat = s));
 
     await pc.publishCommitment({ round: 1, combatantId: 'pc', commitment: 'abc123' });
-    await gm.mirrorCombat({ sessionId: 1, round: 1, phase: 'assignment', combatants: {} });
+    await gm.mirrorCombat({ sessionId: 1, round: 1, phase: 'assignment', combatants: {}, lastSavesSucceeded: null });
     expect(commitments).toHaveLength(1);
     expect(combat).not.toBeNull();
 

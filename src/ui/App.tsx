@@ -102,12 +102,13 @@ function GmSession({
   const phase = phaseName(snapshot);
   const round = snapshot.context.round;
   const combatants = snapshot.context.combatants;
+  const lastSavesSucceeded = snapshot.context.lastSavesSucceeded;
 
   // Mirror the public snapshot to room metadata on every transition. The sessionId
   // rides along so players remount their board when the GM starts a new combat.
   useEffect(() => {
-    void sync.mirrorCombat(toMirroredCombat(sessionId, round, phase, combatants));
-  }, [sync, sessionId, round, phase, combatants]);
+    void sync.mirrorCombat(toMirroredCombat(sessionId, round, phase, combatants, lastSavesSucceeded));
+  }, [sync, sessionId, round, phase, combatants, lastSavesSucceeded]);
 
   // Forward commitments → locks. Read fresh machine state per delivery so we only
   // lock active, still-unlocked combatants for the current round.
@@ -138,6 +139,7 @@ function GmSession({
       round={round}
       phase={phase}
       combatants={combatants}
+      lastSavesSucceeded={lastSavesSucceeded}
       players={players}
       send={send}
       onStart={handleStart}
@@ -171,6 +173,7 @@ function PlayerSession({ sync, self }: { sync: CombatSync; self: PlayerInfo }) {
       round={round}
       phase={phase}
       combatants={combatants}
+      lastSavesSucceeded={mirror?.lastSavesSucceeded ?? null}
     />
   );
 }
