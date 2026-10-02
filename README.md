@@ -79,4 +79,4 @@ This project is built with the Claude Code CLI. Conventions, the normalized rule
 
 ## License
 
-TBD.
+TBD — not yet licensed for reuse.
