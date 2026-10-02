@@ -8,8 +8,8 @@ export type PhaseName =
   | 'idle'
   | 'assignment'
   | 'reveal'
-  | 'resolveDamage'
   | 'resolveMovement'
+  | 'resolveDamage'
   | 'resolveSaves'
   | 'carryover'
   | 'combatEnded';
@@ -17,8 +17,8 @@ export type PhaseName =
 const ROUND_PHASES = [
   'assignment',
   'reveal',
-  'resolveDamage',
   'resolveMovement',
+  'resolveDamage',
   'resolveSaves',
   'carryover',
 ] as const;
@@ -41,8 +41,8 @@ export const isEnded = (p: PhaseName): boolean => p === 'combatEnded';
 export function isResolving(p: PhaseName): boolean {
   return (
     p === 'reveal' ||
-    p === 'resolveDamage' ||
     p === 'resolveMovement' ||
+    p === 'resolveDamage' ||
     p === 'resolveSaves' ||
     p === 'carryover'
   );
@@ -57,10 +57,10 @@ export function describePhase(p: PhaseName): string {
       return 'Assignment (hidden)';
     case 'reveal':
       return 'Reveal';
-    case 'resolveDamage':
-      return 'Resolving: Damage';
     case 'resolveMovement':
       return 'Resolving: Movement';
+    case 'resolveDamage':
+      return 'Resolving: Damage';
     case 'resolveSaves':
       return 'Resolving: Saves';
     case 'carryover':

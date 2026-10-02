@@ -258,15 +258,21 @@ export const combatMachine = setup({
         // Simultaneous reveal (transient) → resolution begins.
         reveal: {
           tags: ['revealed'],
-          always: { target: 'resolveDamage' },
+          always: { target: 'resolveMovement' },
         },
-        // Resolution order Damage → Movement → Saves is enforced STRUCTURALLY: each
+        // Resolution order Movement → Damage → Saves is enforced STRUCTURALLY: each
         // phase can only reach the next, so Saves is unreachable without the prior two.
+        resolveMovement: {
+          tags: ['resolving'],
+          on: {
+            'movement.resolved': { target: 'resolveDamage' },
+          },
+        },
         resolveDamage: {
           tags: ['resolving'],
           on: {
             'damage.resolved': {
-              target: 'resolveMovement',
+              target: 'resolveSaves',
               actions: [
                 {
                   type: 'applyThresholdBreaks',
@@ -274,12 +280,6 @@ export const combatMachine = setup({
                 },
               ],
             },
-          },
-        },
-        resolveMovement: {
-          tags: ['resolving'],
-          on: {
-            'movement.resolved': { target: 'resolveSaves' },
           },
         },
         resolveSaves: {

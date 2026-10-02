@@ -4,7 +4,7 @@ import type { CombatantId, CombatantPublic, DieValue, PersistentEffect } from '.
 import type { PhaseName } from './phase';
 import type { RevealRecord } from './useHiddenDice';
 
-// GM-only resolution controls. Walks the strict Damage → Movement → Saves order the
+// GM-only resolution controls. Walks the strict Movement → Damage → Saves order the
 // combat machine enforces. Damage is sent to the machine as PUBLIC attrition (pool
 // counts); each owning client mirrors that onto its own hidden pool via the public
 // pool-count delta. Revealed assignments are shown separately by <RevealList>.
