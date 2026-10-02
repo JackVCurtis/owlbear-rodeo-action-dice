@@ -80,3 +80,5 @@ This project is built with the Claude Code CLI. Conventions, the normalized rule
 ## License
 
 TBD.
+
+<!-- Test PR for Anachoic task view; not for merge. -->
