@@ -110,6 +110,12 @@ function GmSession({
     void sync.mirrorCombat(toMirroredCombat(sessionId, round, phase, combatants, lastSavesSucceeded));
   }, [sync, sessionId, round, phase, combatants, lastSavesSucceeded]);
 
+  // Each new round's assignment drops the previous rounds' commitments so room
+  // metadata stays bounded. Reveals for those rounds were verified on receipt.
+  useEffect(() => {
+    if (phase === 'assignment' && round > 1) void sync.pruneCommitments(round);
+  }, [sync, phase, round]);
+
   // Forward commitments → locks. Read fresh machine state per delivery so we only
   // lock active, still-unlocked combatants for the current round.
   useEffect(() => {

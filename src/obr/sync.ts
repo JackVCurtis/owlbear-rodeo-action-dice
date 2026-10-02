@@ -51,6 +51,9 @@ export interface CombatSync {
   getConnectedPlayers(): Promise<PlayerInfo[]>;
   onPlayersChange(handler: (players: PlayerInfo[]) => void): () => void;
   publishCommitment(commitment: Commitment): Promise<void>;
+  // Delete every commitment for rounds before `beforeRound`, keeping room metadata
+  // bounded across a long combat. Re-emits the pruned list to commitment subs.
+  pruneCommitments(beforeRound: number): Promise<void>;
   subscribeCommitments(handler: (all: Commitment[]) => void): () => void;
   broadcastReveal(reveal: RevealPayload): Promise<void>;
   onReveal(handler: (reveal: RevealPayload) => void): () => void;
@@ -78,6 +81,7 @@ export class NoopSync implements CombatSync {
     return () => {};
   }
   async publishCommitment(): Promise<void> {}
+  async pruneCommitments(): Promise<void> {}
   subscribeCommitments(): () => void {
     return () => {};
   }
@@ -151,6 +155,14 @@ export class FakeSync implements CombatSync {
   async publishCommitment(commitment: Commitment): Promise<void> {
     const key = `${commitment.round}:${commitment.combatantId}`;
     this.state.commitments = { ...this.state.commitments, [key]: commitment };
+    const all = Object.values(this.state.commitments);
+    this.state.commitmentSubs.forEach((h) => h(all));
+  }
+
+  async pruneCommitments(beforeRound: number): Promise<void> {
+    this.state.commitments = Object.fromEntries(
+      Object.entries(this.state.commitments).filter(([, c]) => c.round >= beforeRound),
+    );
     const all = Object.values(this.state.commitments);
     this.state.commitmentSubs.forEach((h) => h(all));
   }

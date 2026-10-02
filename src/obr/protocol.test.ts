@@ -121,3 +121,23 @@ function pub(id: string, ownerId: string): CombatantPublic {
     currentHp: 24,
   };
 }
+
+describe('commitment pruning across rounds', () => {
+  it('leaves only the current round committed after rounds 1→3', async () => {
+    const room = createFakeRoom();
+    const gm = room.createClient(GM);
+    const player = room.createClient(ALICE);
+    let seen: Commitment[] = [];
+    gm.subscribeCommitments((all) => (seen = all));
+
+    for (const round of [1, 2, 3]) {
+      // The GM prunes as each new round's assignment begins.
+      if (round > 1) await gm.pruneCommitments(round);
+      await commitOnLock(player, round, 'alice', assignment());
+      await commitOnLock(gm, round, 'orc', assignment());
+    }
+
+    expect(seen).toHaveLength(2);
+    expect(committedIds(seen, 3)).toEqual(new Set(['alice', 'orc']));
+  });
+});

@@ -48,11 +48,21 @@ export class ObrSync implements CombatSync {
   private readonly ownCommitments = new Map<string, Commitment>();
   private readonly commitmentHandlers = new Set<(all: Commitment[]) => void>();
 
+  // A local echo whose metadata key was nulled has been pruned (possibly by the GM's
+  // client), so it is dropped rather than resurrected.
   private mergedCommitments(metadata: Metadata): Commitment[] {
     const byId = new Map<string, Commitment>();
     for (const c of commitmentsFromMetadata(metadata)) byId.set(`${c.round}:${c.combatantId}`, c);
-    for (const [key, c] of this.ownCommitments) byId.set(key, c);
+    for (const [key, c] of this.ownCommitments) {
+      if (metadata[commitKey(c.round, c.combatantId)] === null) this.ownCommitments.delete(key);
+      else byId.set(key, c);
+    }
     return [...byId.values()];
+  }
+
+  private emitCommitments(metadata: Metadata): void {
+    const all = this.mergedCommitments(metadata);
+    this.commitmentHandlers.forEach((h) => h(all));
   }
 
   async getSelf(): Promise<PlayerInfo> {
@@ -87,9 +97,21 @@ export class ObrSync implements CombatSync {
       [commitKey(commitment.round, commitment.combatantId)]: commitment,
     });
     // Echo locally so we never wait on OBR re-delivering our own metadata change.
+    this.emitCommitments(await OBR.room.getMetadata());
+  }
+
+  // Nulls (not undefined, so it survives JSON) every commit key from an earlier round.
+  async pruneCommitments(beforeRound: number): Promise<void> {
     const metadata = await OBR.room.getMetadata();
-    const all = this.mergedCommitments(metadata);
-    this.commitmentHandlers.forEach((h) => h(all));
+    const update: Metadata = {};
+    for (const c of commitmentsFromMetadata(metadata)) {
+      if (c.round < beforeRound) update[commitKey(c.round, c.combatantId)] = null;
+    }
+    for (const [key, c] of this.ownCommitments) {
+      if (c.round < beforeRound) this.ownCommitments.delete(key);
+    }
+    if (Object.keys(update).length > 0) await OBR.room.setMetadata(update);
+    this.emitCommitments(await OBR.room.getMetadata());
   }
 
   subscribeCommitments(handler: (all: Commitment[]) => void): () => void {

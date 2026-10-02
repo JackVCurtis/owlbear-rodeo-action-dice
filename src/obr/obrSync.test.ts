@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Metadata } from '@owlbear-rodeo/sdk';
 import { getPluginId } from './ids';
-import type { MirroredCombat } from './sync';
+import type { Commitment, MirroredCombat } from './sync';
 
 // Minimal in-memory stand-in for OBR.room metadata. Change listeners fire only when
 // a test calls `emitChange`, so a test can observe what a subscriber receives from
@@ -118,5 +118,53 @@ describe('ObrSync.subscribeCombat', () => {
     await flush();
 
     expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe('ObrSync.pruneCommitments', () => {
+  beforeEach(() => fakeRoom.reset());
+
+  const commit = (round: number, combatantId: string): Commitment => ({
+    round,
+    combatantId,
+    commitment: `h${round}${combatantId}`,
+  });
+  const key = (round: number, id: string) => getPluginId(`commit/${round}:${id}`);
+
+  it('nulls every commit key from earlier rounds and keeps the current round', async () => {
+    const sync = new ObrSync();
+    await sync.publishCommitment(commit(1, 'pc'));
+    await sync.publishCommitment(commit(1, 'orc'));
+    await sync.publishCommitment(commit(2, 'pc'));
+
+    await sync.pruneCommitments(2);
+
+    expect(fakeRoom.state.metadata[key(1, 'pc')]).toBeNull();
+    expect(fakeRoom.state.metadata[key(1, 'orc')]).toBeNull();
+    expect(fakeRoom.state.metadata[key(2, 'pc')]).toEqual(commit(2, 'pc'));
+  });
+
+  it('re-emits the pruned list, dropping stale locally-echoed commitments too', async () => {
+    const sync = new ObrSync();
+    let seen: Commitment[] = [];
+    sync.subscribeCommitments((all) => (seen = all));
+    await sync.publishCommitment(commit(1, 'orc'));
+    await sync.publishCommitment(commit(2, 'orc'));
+
+    await sync.pruneCommitments(2);
+
+    expect(seen).toEqual([commit(2, 'orc')]);
+  });
+
+  it("drops another client's local echo once the GM's prune nulls its key", async () => {
+    const player = new ObrSync();
+    let seen: Commitment[] = [];
+    player.subscribeCommitments((all) => (seen = all));
+    await player.publishCommitment(commit(1, 'pc'));
+
+    await new ObrSync().pruneCommitments(2);
+    fakeRoom.emitChange();
+
+    expect(seen).toEqual([]);
   });
 });

@@ -152,3 +152,31 @@ describe('FakeSync via a shared room', () => {
     expect(await verifyCommitment(tampered, seen!.salt, stored!.commitment)).toBe(false);
   });
 });
+
+describe('FakeSync.pruneCommitments', () => {
+  const commit = (round: number, combatantId: string): Commitment => ({
+    round,
+    combatantId,
+    commitment: `h${round}${combatantId}`,
+  });
+
+  it('removes commitments from earlier rounds for every client, keeping the current round', async () => {
+    const room = createFakeRoom();
+    const gm = room.createClient(GM);
+    const player = room.createClient(PC);
+    await player.publishCommitment(commit(1, 'pc'));
+    await gm.publishCommitment(commit(1, 'orc'));
+    await player.publishCommitment(commit(2, 'pc'));
+    await gm.publishCommitment(commit(2, 'orc'));
+
+    let seen: Commitment[] = [];
+    player.subscribeCommitments((all) => (seen = all));
+    await gm.pruneCommitments(2);
+
+    expect(seen.map((c) => c.round)).toEqual([2, 2]);
+    let late: Commitment[] = [];
+    room.createClient({ id: 'late', name: 'Late', role: 'PLAYER' }).subscribeCommitments((all) => (late = all));
+    expect(late).toHaveLength(2);
+    expect(late.every((c) => c.round === 2)).toBe(true);
+  });
+});
