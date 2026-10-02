@@ -470,6 +470,11 @@ button:disabled {
   color: #e5484d;
 }
 
+.reveal__pending {
+  font-size: 0.72rem;
+  opacity: 0.65;
+}
+
 .reveal__mismatch {
   font-size: 0.72rem;
   font-weight: 600;

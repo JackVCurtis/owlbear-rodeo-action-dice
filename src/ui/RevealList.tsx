@@ -43,7 +43,8 @@ function RevealCard({
       <div className="reveal__body">
         {record ? describeAssignment(record.assignment) : 'revealing…'}
       </div>
-      {record && !record.verified && (
+      {record?.status === 'pending' && <div className="reveal__pending">verifying…</div>}
+      {record?.status === 'mismatch' && (
         <div className="reveal__mismatch">⚠ commitment mismatch — value could not be verified</div>
       )}
       {broke && <div className="reveal__dropped">threshold broken — lost {pub.proficiencyBonus} dice</div>}

@@ -71,6 +71,20 @@ export async function verifyReveal(
   return { found: true, ok };
 }
 
+// A reveal and its commitment travel on separate channels with no ordering
+// guarantee, so a reveal with no commitment yet is 'pending' (re-check when
+// commitments update); only a hash that fails to reproduce is a 'mismatch'.
+export type RevealStatus = 'pending' | 'verified' | 'mismatch';
+
+export async function revealStatus(
+  reveal: RevealPayload,
+  commitments: Commitment[],
+): Promise<RevealStatus> {
+  const { found, ok } = await verifyReveal(reveal, commitments);
+  if (!found) return 'pending';
+  return ok ? 'verified' : 'mismatch';
+}
+
 // MIRROR MAPPING: the GM's authoritative combat snapshot → the public mirror other
 // clients render. Kept trivial and pure so the mapping is one obvious place. The
 // sessionId lets players remount onto a fresh combat when the GM resets.

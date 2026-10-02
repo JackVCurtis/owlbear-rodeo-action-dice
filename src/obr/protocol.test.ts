@@ -6,6 +6,7 @@ import {
   commitOnLock,
   committedIds,
   ownedIds,
+  revealStatus,
   toMirroredCombat,
   verifyReveal,
 } from './protocol';
@@ -167,5 +168,33 @@ describe('late joiner catching up on a revealed round', () => {
     for (const r of recovered) {
       expect(await verifyReveal(r, commitments)).toEqual({ found: true, ok: true });
     }
+  });
+});
+
+describe('revealStatus when broadcast and commitment race', () => {
+  async function lockedReveal(): Promise<{ reveal: RevealPayload; commitments: Commitment[] }> {
+    const room = createFakeRoom();
+    const player = room.createClient(ALICE);
+    let commitments: Commitment[] = [];
+    room.createClient(GM).subscribeCommitments((all) => (commitments = all));
+    const { round, combatantId, assignment: a, salt } = await commitOnLock(player, 1, 'alice', assignment());
+    return { reveal: { round, combatantId, assignment: a, salt }, commitments };
+  }
+
+  it('is pending, not a mismatch, while the commitment has not arrived', async () => {
+    const { reveal } = await lockedReveal();
+    expect(await revealStatus(reveal, [])).toBe('pending');
+  });
+
+  it('becomes verified once the commitment arrives', async () => {
+    const { reveal, commitments } = await lockedReveal();
+    expect(await revealStatus(reveal, [])).toBe('pending');
+    expect(await revealStatus(reveal, commitments)).toBe('verified');
+  });
+
+  it('is a mismatch when the plaintext does not reproduce the commitment', async () => {
+    const { reveal, commitments } = await lockedReveal();
+    const tampered = { ...reveal, assignment: { ...reveal.assignment, saves: [20, 20] } };
+    expect(await revealStatus(tampered, commitments)).toBe('mismatch');
   });
 });

@@ -8,8 +8,9 @@ import {
   committedIds,
   loadStoredReveal,
   persistStoredReveal,
-  verifyReveal,
+  revealStatus,
   ownedIds,
+  type RevealStatus,
   type StoredReveal,
 } from '../obr/protocol';
 import type { Assignment, CombatantId, CombatantPublic, DieValue } from '../rules/types';
@@ -27,10 +28,10 @@ function buildOutcome(assignment: Assignment, savesSucceeded: DieValue[]): Round
 }
 
 // A revealed assignment as seen by this client, plus whether its plaintext+salt
-// reproduced the committer's hash. `verified: false` flags tampering.
+// reproduced the committer's hash. Only 'mismatch' flags tampering.
 export interface RevealRecord {
   assignment: Assignment;
-  verified: boolean;
+  status: RevealStatus;
 }
 
 export interface HiddenDice {
@@ -81,13 +82,15 @@ export function useHiddenDice({
 }): HiddenDice {
   const [charActors, setCharActors] = useState<Record<CombatantId, CharActor>>({});
   const [allCommitments, setAllCommitments] = useState<Commitment[]>([]);
+  // Plaintext reveals received for the current round, from any source. `reveals` is
+  // derived from these by re-verifying whenever they or the commitments change.
+  const [received, setReceived] = useState<Record<CombatantId, RevealPayload>>({});
   const [reveals, setReveals] = useState<Record<CombatantId, RevealRecord>>({});
   const [broken, setBroken] = useState<Set<CombatantId>>(new Set());
   const [mirroredReveals, setMirroredReveals] = useState<RevealedRound | null>(null);
 
   const charActorsRef = useRef(charActors);
   charActorsRef.current = charActors;
-  const commitmentsRef = useRef<Commitment[]>([]);
   const roundRef = useRef(round);
   roundRef.current = round;
 
@@ -132,22 +135,14 @@ export function useHiddenDice({
 
   // Subscribe to commitments (for "who has locked in" + reveal verification).
   useEffect(() => {
-    return sync.subscribeCommitments((all) => {
-      commitmentsRef.current = all;
-      setAllCommitments(all);
-    });
+    return sync.subscribeCommitments(setAllCommitments);
   }, [sync]);
 
-  // Receive reveals from other clients: verify against the stored commitment and
-  // record (flagging any mismatch). The GM re-mirrors the accumulating set.
+  // Receive reveals from other clients. The GM re-mirrors the accumulating set.
   useEffect(() => {
-    return sync.onReveal(async (reveal) => {
+    return sync.onReveal((reveal) => {
       if (reveal.round !== roundRef.current) return;
-      const { ok } = await verifyReveal(reveal, commitmentsRef.current);
-      setReveals((prev) => ({
-        ...prev,
-        [reveal.combatantId]: { assignment: reveal.assignment, verified: ok },
-      }));
+      setReceived((prev) => ({ ...prev, [reveal.combatantId]: reveal }));
       if (isGM) {
         revealAccum.current = [
           ...revealAccum.current.filter((r) => r.combatantId !== reveal.combatantId),
@@ -159,27 +154,35 @@ export function useHiddenDice({
   }, [sync, isGM]);
 
   // Catch up on reveals whose broadcast this client missed (late join / refresh) from
-  // the GM's revealed-round mirror. Only the current round, never overwriting a reveal
-  // already known; a reveal whose commitment hasn't arrived yet is skipped and picked
-  // up when `allCommitments` changes.
+  // the GM's revealed-round mirror: current round only, never overwriting a reveal
+  // already received.
   useEffect(() => sync.subscribeRevealedRound(setMirroredReveals), [sync]);
   useEffect(() => {
     if (!mirroredReveals || mirroredReveals.round !== round) return;
+    setReceived((prev) => {
+      const missing = mirroredReveals.reveals.filter((r) => !prev[r.combatantId]);
+      if (missing.length === 0) return prev;
+      return { ...prev, ...Object.fromEntries(missing.map((r) => [r.combatantId, r])) };
+    });
+  }, [mirroredReveals, round]);
+
+  // Re-verify every received reveal whenever reveals or commitments change, so one
+  // that arrived before its commitment moves from 'pending' to its real status.
+  useEffect(() => {
     let live = true;
-    for (const reveal of mirroredReveals.reveals) {
-      void verifyReveal(reveal, allCommitments).then(({ found, ok }) => {
-        if (!live || !found) return;
-        setReveals((prev) =>
-          prev[reveal.combatantId]
-            ? prev
-            : { ...prev, [reveal.combatantId]: { assignment: reveal.assignment, verified: ok } },
-        );
-      });
-    }
+    const entries = Object.entries(received);
+    void Promise.all(
+      entries.map(async ([id, reveal]) => {
+        const status = await revealStatus(reveal, allCommitments);
+        return [id, { assignment: reveal.assignment, status }] as const;
+      }),
+    ).then((records) => {
+      if (live) setReveals(Object.fromEntries(records));
+    });
     return () => {
       live = false;
     };
-  }, [mirroredReveals, round, allCommitments]);
+  }, [received, allCommitments]);
 
   // Leaving assignment: flip owned actors to revealed and broadcast their stored
   // plaintext+salt. Once per round.
@@ -194,15 +197,15 @@ export function useHiddenDice({
       if (!stored) continue;
       void broadcastStoredReveal(sync, stored);
       // Record our own reveal locally (broadcast may not echo to sender).
-      setReveals((prev) => ({
-        ...prev,
-        [id]: { assignment: stored.assignment, verified: true },
-      }));
+      const payload: RevealPayload = {
+        round,
+        combatantId: id,
+        assignment: stored.assignment,
+        salt: stored.salt,
+      };
+      setReceived((prev) => ({ ...prev, [id]: payload }));
       if (isGM) {
-        revealAccum.current = [
-          ...revealAccum.current.filter((r) => r.combatantId !== id),
-          { round, combatantId: id, assignment: stored.assignment, salt: stored.salt },
-        ];
+        revealAccum.current = [...revealAccum.current.filter((r) => r.combatantId !== id), payload];
       }
     }
     if (isGM) void sync.mirrorRevealedRound(round, revealAccum.current);
@@ -246,7 +249,7 @@ export function useHiddenDice({
       }
     }
     revealAccum.current = [];
-    setReveals({});
+    setReceived({});
     setBroken(new Set());
   }, [phase, round, owned, lastSavesSucceeded]);
 
