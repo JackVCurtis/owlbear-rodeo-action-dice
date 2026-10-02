@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createActor } from 'xstate';
 import { characterMachine } from '../machines/characterMachine';
-import type { CombatSync, Commitment, PlayerInfo, RevealPayload } from '../obr/sync';
+import type { CombatSync, Commitment, PlayerInfo, RevealedRound, RevealPayload } from '../obr/sync';
 import {
   broadcastStoredReveal,
   commitOnLock,
@@ -83,6 +83,7 @@ export function useHiddenDice({
   const [allCommitments, setAllCommitments] = useState<Commitment[]>([]);
   const [reveals, setReveals] = useState<Record<CombatantId, RevealRecord>>({});
   const [broken, setBroken] = useState<Set<CombatantId>>(new Set());
+  const [mirroredReveals, setMirroredReveals] = useState<RevealedRound | null>(null);
 
   const charActorsRef = useRef(charActors);
   charActorsRef.current = charActors;
@@ -156,6 +157,29 @@ export function useHiddenDice({
       }
     });
   }, [sync, isGM]);
+
+  // Catch up on reveals whose broadcast this client missed (late join / refresh) from
+  // the GM's revealed-round mirror. Only the current round, never overwriting a reveal
+  // already known; a reveal whose commitment hasn't arrived yet is skipped and picked
+  // up when `allCommitments` changes.
+  useEffect(() => sync.subscribeRevealedRound(setMirroredReveals), [sync]);
+  useEffect(() => {
+    if (!mirroredReveals || mirroredReveals.round !== round) return;
+    let live = true;
+    for (const reveal of mirroredReveals.reveals) {
+      void verifyReveal(reveal, allCommitments).then(({ found, ok }) => {
+        if (!live || !found) return;
+        setReveals((prev) =>
+          prev[reveal.combatantId]
+            ? prev
+            : { ...prev, [reveal.combatantId]: { assignment: reveal.assignment, verified: ok } },
+        );
+      });
+    }
+    return () => {
+      live = false;
+    };
+  }, [mirroredReveals, round, allCommitments]);
 
   // Leaving assignment: flip owned actors to revealed and broadcast their stored
   // plaintext+salt. Once per round.

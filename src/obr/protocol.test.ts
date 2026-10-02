@@ -141,3 +141,31 @@ describe('commitment pruning across rounds', () => {
     expect(committedIds(seen, 3)).toEqual(new Set(['alice', 'orc']));
   });
 });
+
+describe('late joiner catching up on a revealed round', () => {
+  it('recovers and verifies reveals it missed the broadcast of', async () => {
+    const room = createFakeRoom();
+    const gm = room.createClient(GM);
+    const player = room.createClient(ALICE);
+    const aliceStored = await commitOnLock(player, 1, 'alice', assignment());
+    const orcStored = await commitOnLock(gm, 1, 'orc', assignment());
+    const reveals: RevealPayload[] = [aliceStored, orcStored].map(({ round, combatantId, assignment, salt }) => ({
+      round,
+      combatantId,
+      assignment,
+      salt,
+    }));
+    await gm.mirrorRevealedRound(1, reveals);
+
+    const late = room.createClient({ id: 'bob', name: 'Bob', role: 'PLAYER' });
+    let commitments: Commitment[] = [];
+    late.subscribeCommitments((all) => (commitments = all));
+    let recovered: RevealPayload[] = [];
+    late.subscribeRevealedRound((r) => (recovered = r?.round === 1 ? r.reveals : []));
+
+    expect(recovered.map((r) => r.combatantId).sort()).toEqual(['alice', 'orc']);
+    for (const r of recovered) {
+      expect(await verifyReveal(r, commitments)).toEqual({ found: true, ok: true });
+    }
+  });
+});

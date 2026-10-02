@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Metadata } from '@owlbear-rodeo/sdk';
 import { getPluginId } from './ids';
-import type { Commitment, MirroredCombat } from './sync';
+import type { Commitment, MirroredCombat, RevealedRound } from './sync';
 
 // Minimal in-memory stand-in for OBR.room metadata. Change listeners fire only when
 // a test calls `emitChange`, so a test can observe what a subscriber receives from
@@ -166,5 +166,43 @@ describe('ObrSync.pruneCommitments', () => {
     fakeRoom.emitChange();
 
     expect(seen).toEqual([]);
+  });
+});
+
+describe('ObrSync.subscribeRevealedRound', () => {
+  beforeEach(() => fakeRoom.reset());
+
+  const REVEALED_KEY = getPluginId('revealed-round');
+  const revealed: RevealedRound = {
+    round: 2,
+    reveals: [
+      {
+        round: 2,
+        combatantId: 'pc',
+        assignment: { action: [], bonus: null, reaction: null, saves: [] },
+        salt: 's',
+      },
+    ],
+  };
+
+  it('replays the mirrored revealed round on subscribe', async () => {
+    fakeRoom.reset({ [REVEALED_KEY]: revealed } as Metadata);
+    const handler = vi.fn();
+
+    new ObrSync().subscribeRevealedRound(handler);
+    await flush();
+
+    expect(handler).toHaveBeenCalledWith(revealed);
+  });
+
+  it('delivers a revealed round mirrored after subscribing', async () => {
+    const handler = vi.fn();
+
+    new ObrSync().subscribeRevealedRound(handler);
+    await flush();
+    await new ObrSync().mirrorRevealedRound(revealed.round, revealed.reveals);
+    fakeRoom.emitChange();
+
+    expect(handler).toHaveBeenLastCalledWith(revealed);
   });
 });

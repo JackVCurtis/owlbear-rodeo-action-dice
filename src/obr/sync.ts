@@ -40,6 +40,13 @@ export interface MirroredCombat {
   lastSavesSucceeded: { round: number; byCombatant: Record<CombatantId, DieValue[]> } | null;
 }
 
+// The most recently revealed round's verified-able plaintexts, mirrored by the GM so
+// a client that missed the reveal broadcast (late join / refresh) can catch up.
+export interface RevealedRound {
+  round: number;
+  reveals: RevealPayload[];
+}
+
 // The seam between the pure machines and OBR transport. Commit–reveal: at lock-in
 // only a COMMITMENT (hash) crosses via room metadata; at reveal the plaintext
 // assignment + salt cross via broadcast and every client verifies against the
@@ -60,6 +67,8 @@ export interface CombatSync {
   mirrorCombat(snapshot: MirroredCombat): Promise<void>;
   subscribeCombat(handler: (snapshot: MirroredCombat | null) => void): () => void;
   mirrorRevealedRound(round: number, reveals: RevealPayload[]): Promise<void>;
+  // Replays the current revealed-round mirror on subscribe, then delivers changes.
+  subscribeRevealedRound(handler: (revealed: RevealedRound | null) => void): () => void;
   // Wipe all shared combat state (commitments, mirror, revealed round) so a new
   // combat starts clean. Re-emits `[]` to commitment subs and `null` to combat subs.
   clearCombat(): Promise<void>;
@@ -94,6 +103,9 @@ export class NoopSync implements CombatSync {
     return () => {};
   }
   async mirrorRevealedRound(): Promise<void> {}
+  subscribeRevealedRound(): () => void {
+    return () => {};
+  }
   async clearCombat(): Promise<void> {}
 }
 
@@ -103,11 +115,12 @@ export class NoopSync implements CombatSync {
 interface FakeRoomState {
   commitments: Record<string, Commitment>;
   combat: MirroredCombat | null;
-  revealedRound: { round: number; reveals: RevealPayload[] } | null;
+  revealedRound: RevealedRound | null;
   players: PlayerInfo[];
   commitmentSubs: Set<(all: Commitment[]) => void>;
   revealSubs: Set<(reveal: RevealPayload) => void>;
   combatSubs: Set<(snapshot: MirroredCombat | null) => void>;
+  revealedRoundSubs: Set<(revealed: RevealedRound | null) => void>;
   playerSubs: Set<(players: PlayerInfo[]) => void>;
 }
 
@@ -194,7 +207,15 @@ export class FakeSync implements CombatSync {
   }
 
   async mirrorRevealedRound(round: number, reveals: RevealPayload[]): Promise<void> {
-    this.state.revealedRound = { round, reveals };
+    const revealed = { round, reveals };
+    this.state.revealedRound = revealed;
+    this.state.revealedRoundSubs.forEach((h) => h(revealed));
+  }
+
+  subscribeRevealedRound(handler: (revealed: RevealedRound | null) => void): () => void {
+    this.state.revealedRoundSubs.add(handler);
+    handler(this.state.revealedRound);
+    return () => this.state.revealedRoundSubs.delete(handler);
   }
 
   async clearCombat(): Promise<void> {
@@ -203,6 +224,7 @@ export class FakeSync implements CombatSync {
     this.state.revealedRound = null;
     this.state.commitmentSubs.forEach((h) => h([]));
     this.state.combatSubs.forEach((h) => h(null));
+    this.state.revealedRoundSubs.forEach((h) => h(null));
   }
 }
 
@@ -217,6 +239,7 @@ export function createFakeRoom(): FakeRoom {
     commitmentSubs: new Set(),
     revealSubs: new Set(),
     combatSubs: new Set(),
+    revealedRoundSubs: new Set(),
     playerSubs: new Set(),
   };
   let anon = 0;

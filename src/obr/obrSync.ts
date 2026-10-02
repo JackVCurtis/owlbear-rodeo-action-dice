@@ -6,6 +6,7 @@ import type {
   Commitment,
   MirroredCombat,
   PlayerInfo,
+  RevealedRound,
   RevealPayload,
 } from './sync';
 
@@ -33,6 +34,26 @@ function commitmentsFromMetadata(metadata: Metadata): Commitment[] {
     }
   }
   return out;
+}
+
+// Replays one room-metadata key's current value on subscribe (so a late joiner or
+// refreshed popover renders immediately), then delivers it on every change. The
+// initial read is dropped if a change event (which is newer) or an unsubscribe lands
+// first. An absent or nulled key is delivered as null.
+function subscribeKey<T>(key: string, handler: (value: T | null) => void): () => void {
+  const read = (metadata: Metadata) => (metadata[key] as T | null | undefined) ?? null;
+  let superseded = false;
+  void OBR.room.getMetadata().then((metadata) => {
+    if (!superseded) handler(read(metadata));
+  });
+  const unsubscribe = OBR.room.onMetadataChange((metadata: Metadata) => {
+    superseded = true;
+    handler(read(metadata));
+  });
+  return () => {
+    superseded = true;
+    unsubscribe();
+  };
 }
 
 function toPlayerInfo(p: Player): PlayerInfo {
@@ -140,28 +161,16 @@ export class ObrSync implements CombatSync {
     await OBR.room.setMetadata({ [COMBAT_KEY]: snapshot });
   }
 
-  // Replays the current mirror on subscribe so a late joiner or refreshed popover
-  // renders immediately. The initial read is dropped if a change event (which is
-  // newer) or an unsubscribe lands first.
   subscribeCombat(handler: (snapshot: MirroredCombat | null) => void): () => void {
-    const read = (metadata: Metadata) =>
-      (metadata[COMBAT_KEY] as MirroredCombat | null | undefined) ?? null;
-    let superseded = false;
-    void OBR.room.getMetadata().then((metadata) => {
-      if (!superseded) handler(read(metadata));
-    });
-    const unsubscribe = OBR.room.onMetadataChange((metadata: Metadata) => {
-      superseded = true;
-      handler(read(metadata));
-    });
-    return () => {
-      superseded = true;
-      unsubscribe();
-    };
+    return subscribeKey<MirroredCombat>(COMBAT_KEY, handler);
   }
 
   async mirrorRevealedRound(round: number, reveals: RevealPayload[]): Promise<void> {
     await OBR.room.setMetadata({ [REVEALED_ROUND_KEY]: { round, reveals } });
+  }
+
+  subscribeRevealedRound(handler: (revealed: RevealedRound | null) => void): () => void {
+    return subscribeKey<RevealedRound>(REVEALED_ROUND_KEY, handler);
   }
 
   // Reset: null out the mirror, the revealed round, and EVERY commitment key (using

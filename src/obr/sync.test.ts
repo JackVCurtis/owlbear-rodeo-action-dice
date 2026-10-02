@@ -180,3 +180,35 @@ describe('FakeSync.pruneCommitments', () => {
     expect(late.every((c) => c.round === 2)).toBe(true);
   });
 });
+
+describe('FakeSync.subscribeRevealedRound', () => {
+  const reveal = (round: number): RevealPayload => ({
+    round,
+    combatantId: 'pc',
+    assignment: assignment(),
+    salt: 's',
+  });
+
+  it('replays the mirrored revealed round to a client that joins afterwards', async () => {
+    const room = createFakeRoom();
+    const gm = room.createClient(GM);
+    await gm.mirrorRevealedRound(2, [reveal(2)]);
+
+    let seen: unknown = 'never';
+    room.createClient(PC).subscribeRevealedRound((r) => (seen = r));
+
+    expect(seen).toEqual({ round: 2, reveals: [reveal(2)] });
+  });
+
+  it('delivers later mirrors and null after the combat is cleared', async () => {
+    const room = createFakeRoom();
+    const gm = room.createClient(GM);
+    const seen: unknown[] = [];
+    room.createClient(PC).subscribeRevealedRound((r) => seen.push(r));
+
+    await gm.mirrorRevealedRound(1, [reveal(1)]);
+    await gm.clearCombat();
+
+    expect(seen).toEqual([null, { round: 1, reveals: [reveal(1)] }, null]);
+  });
+});
