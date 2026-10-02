@@ -11,7 +11,7 @@ An [Owlbear Rodeo](https://www.owlbear.rodeo/) extension implementing a simultan
 - **Pool setup** — at the start of combat, digitally rolls `level × proficiency bonus` d20s per combatant (PCs and monsters alike) into a hidden Action Dice pool, plus an Advantage/Disadvantage side pool. Hidden dice are visible only on the owning client — not even the GM sees them until reveal.
 - **Hidden assignment** — each round, players secretly assign dice from their pool to Action / Bonus Action / Reaction / Save slots (or hide a token for no-roll actions like Dash). Damage is rolled alongside attacks.
 - **Simultaneous reveal** — once everyone locks in, all assignments are revealed at once.
-- **Ordered resolution** — resolves in phases: **Damage → Movement → Saves**, including damage-threshold tracking (no hit points during combat), Action Dice attrition, and carryover of unused Save and Reaction dice.
+- **Ordered resolution** — resolves in phases: **Movement → Damage → Saves**, including damage-threshold tracking (no hit points during combat), Action Dice attrition, and carryover of unused Save and Reaction dice.
 - **Combat bookkeeping** — a persistent spell-effects/conditions list carried across rounds and end-of-combat HP reconciliation for downed characters. (Unbounded-roll spell pools are not yet implemented.)
 
 ## Tech stack
@@ -26,7 +26,7 @@ An [Owlbear Rodeo](https://www.owlbear.rodeo/) extension implementing a simultan
 
 ### Why XState
 
-The variant is *phase-driven with hidden information*: Setup → Assignment (hidden) → Reveal → Damage → Movement → Saves → Carryover → next round or Combat End. That is a finite-state problem with strict ordering invariants, which is exactly what a statechart enforces. The [`xstate-v5` Claude Code skill](https://claudemarketplaces.com/skills/statelyai/skills/xstate-v5) is installed so the agent designs and reviews machines idiomatically.
+The variant is *phase-driven with hidden information*: Setup → Assignment (hidden) → Reveal → Movement → Damage → Saves → Carryover → next round or Combat End. That is a finite-state problem with strict ordering invariants, which is exactly what a statechart enforces. The [`xstate-v5` Claude Code skill](https://claudemarketplaces.com/skills/statelyai/skills/xstate-v5) is installed so the agent designs and reviews machines idiomatically.
 
 ## Getting started
 

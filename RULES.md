@@ -41,9 +41,9 @@ When you are done you **lock in**. Your device publishes only a cryptographic ha
 ### 2. Reveal
 Once every active combatant has locked in, all choices are revealed at once. Each device verifies every revealed hand against its earlier commitment, so tampering is caught.
 
-### 3. Resolution — strictly Damage → Movement → Saves
-1. **Damage.** Total the damage each character takes this round. Healing received this round raises that character's threshold for this round only. If total damage **exceeds** the threshold (strictly greater than), the character removes **`proficiency bonus` Action Dice of their choice** from their pool. A character reduced to **zero Action Dice is out of combat**.
-2. **Movement.** Movement is simultaneous; characters may move through one another. An **opportunity attack** happens only if a Reaction die was assigned to it.
+### 3. Resolution — strictly Movement → Damage → Saves
+1. **Movement.** Movement is simultaneous; characters may move through one another. An **opportunity attack** happens only if a Reaction die was assigned to it.
+2. **Damage.** Total the damage each character takes this round. Healing received this round raises that character's threshold for this round only. If total damage **exceeds** the threshold (strictly greater than), the character removes **`proficiency bonus` Action Dice of their choice** from their pool. A character reduced to **zero Action Dice is out of combat**.
 3. **Saves.** Targets use dice from their Save pool in **descending order** (highest first) to make saving throws. A Save die is **spent only if the save succeeds** — if it fails, or you don't use it, the die returns to your pool and carries to the next round. (This keeps a spell that forces a save from costing you a die *and* dealing damage when you fail.) Spell effects and conditions (e.g. prone) carry into the next round; the exception is **direct/forced movement**, which applies immediately.
 
 ### 4. Carryover
@@ -57,7 +57,7 @@ The extension automates the hidden-dice bookkeeping and enforces the structure:
 
 - Rolls and hides each combatant's Action Dice, keeping values secret until reveal via commit–reveal with tamper-checking.
 - Sizes pools and computes thresholds; applies threshold-break attrition and marks combatants out of combat.
-- Enforces the Assignment → Reveal → Damage → Movement → Saves order and carries unused Save and Reaction dice between rounds.
+- Enforces the Assignment → Reveal → Movement → Damage → Saves order and carries unused Save and Reaction dice between rounds.
 - Reconciles downed-PC hit points when combat ends.
 
 You still adjudicate at the table what the extension does not model: how much damage each attack deals (the GM enters the totals), actual positioning and movement, whether an opportunity attack lands, and the effects of saves and spells. Advantage / disadvantage pool sizes are tracked; applying them to a given roll is done at the table.

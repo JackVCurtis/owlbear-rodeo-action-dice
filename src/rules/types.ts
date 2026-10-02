@@ -33,12 +33,12 @@ export function emptyAssignment(): Assignment {
 }
 
 // The ordered resolution phases within a round. Order is an invariant
-// (Damage → Movement → Saves) enforced structurally by combatMachine.
+// (Movement → Damage → Saves) enforced structurally by combatMachine.
 export type RoundPhase =
   | 'assignment'
   | 'reveal'
-  | 'resolveDamage'
   | 'resolveMovement'
+  | 'resolveDamage'
   | 'resolveSaves'
   | 'carryover';
 
