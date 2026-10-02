@@ -118,10 +118,24 @@ export class ObrSync implements CombatSync {
     await OBR.room.setMetadata({ [COMBAT_KEY]: snapshot });
   }
 
+  // Replays the current mirror on subscribe so a late joiner or refreshed popover
+  // renders immediately. The initial read is dropped if a change event (which is
+  // newer) or an unsubscribe lands first.
   subscribeCombat(handler: (snapshot: MirroredCombat | null) => void): () => void {
-    return OBR.room.onMetadataChange((metadata: Metadata) => {
-      handler((metadata[COMBAT_KEY] as MirroredCombat | undefined) ?? null);
+    const read = (metadata: Metadata) =>
+      (metadata[COMBAT_KEY] as MirroredCombat | null | undefined) ?? null;
+    let superseded = false;
+    void OBR.room.getMetadata().then((metadata) => {
+      if (!superseded) handler(read(metadata));
     });
+    const unsubscribe = OBR.room.onMetadataChange((metadata: Metadata) => {
+      superseded = true;
+      handler(read(metadata));
+    });
+    return () => {
+      superseded = true;
+      unsubscribe();
+    };
   }
 
   async mirrorRevealedRound(round: number, reveals: RevealPayload[]): Promise<void> {
