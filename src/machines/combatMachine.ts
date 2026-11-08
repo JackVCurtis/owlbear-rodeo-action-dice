@@ -106,6 +106,7 @@ export type CombatEvent =
   | { type: 'combat.started'; roster: RosterEntry[]; advantagePools?: AdvantagePools }
   | { type: 'combatant.lockedIn'; id: CombatantId }
   | { type: 'damage.resolved'; damage: Record<CombatantId, number>; healing?: Record<CombatantId, number> }
+  | { type: 'movement.npcsMoved' }
   | { type: 'movement.resolved' }
   | { type: 'saves.resolved'; effects: PersistentEffect[]; savesSucceeded: Record<CombatantId, DieValue[]> }
   | { type: 'advantage.spent'; side: keyof AdvantagePools }
@@ -258,16 +259,10 @@ export const combatMachine = setup({
         // Simultaneous reveal (transient) → resolution begins.
         reveal: {
           tags: ['revealed'],
-          always: { target: 'resolveMovement' },
+          always: { target: 'resolveDamage' },
         },
-        // Resolution order Movement → Damage → Saves is enforced STRUCTURALLY: each
-        // phase can only reach the next, so Saves is unreachable without the prior two.
-        resolveMovement: {
-          tags: ['resolving'],
-          on: {
-            'movement.resolved': { target: 'resolveDamage' },
-          },
-        },
+        // Resolution order Damage → Saves → Movement is enforced STRUCTURALLY: each
+        // phase can only reach the next, so Movement is unreachable without the prior two.
         resolveDamage: {
           tags: ['resolving'],
           on: {
@@ -286,7 +281,7 @@ export const combatMachine = setup({
           tags: ['resolving'],
           on: {
             'saves.resolved': {
-              target: 'carryover',
+              target: 'resolveMovement',
               actions: [
                 { type: 'addEffects', params: ({ event }) => ({ effects: event.effects }) },
                 {
@@ -294,6 +289,25 @@ export const combatMachine = setup({
                   params: ({ event }) => ({ savesSucceeded: event.savesSucceeded }),
                 },
               ],
+            },
+          },
+        },
+        // Movement is the LAST phase and is sequenced by side: the GM moves monsters/
+        // NPCs, then players move their characters. `players` is reachable only
+        // through `npcs`, so the order is structural.
+        resolveMovement: {
+          tags: ['resolving'],
+          initial: 'npcs',
+          states: {
+            npcs: {
+              on: {
+                'movement.npcsMoved': { target: 'players' },
+              },
+            },
+            players: {
+              on: {
+                'movement.resolved': { target: '#combat.round.carryover' },
+              },
             },
           },
         },

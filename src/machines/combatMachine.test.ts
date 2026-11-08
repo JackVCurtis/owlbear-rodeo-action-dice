@@ -25,23 +25,32 @@ describe('combatMachine', () => {
     expect(actor.getSnapshot().matches({ round: 'assignment' })).toBe(true); // b not locked yet
 
     actor.send({ type: 'combatant.lockedIn', id: 'b' });
-    // all locked → reveal (transient) → resolveMovement
-    expect(actor.getSnapshot().matches({ round: 'resolveMovement' })).toBe(true);
+    // all locked → reveal (transient) → resolveDamage
+    expect(actor.getSnapshot().matches({ round: 'resolveDamage' })).toBe(true);
 
     // Ordering invariant: a later phase's event is ignored until its turn.
-    actor.send({ type: 'damage.resolved', damage: { a: 11 }, healing: {} });
     actor.send({ type: 'saves.resolved', effects: [], savesSucceeded: {} });
-    expect(actor.getSnapshot().matches({ round: 'resolveMovement' })).toBe(true);
-    expect(actor.getSnapshot().context.combatants.a.poolCount).toBe(6);
-
+    actor.send({ type: 'movement.npcsMoved' });
     actor.send({ type: 'movement.resolved' });
     expect(actor.getSnapshot().matches({ round: 'resolveDamage' })).toBe(true);
+    expect(actor.getSnapshot().context.persistentEffects).toHaveLength(0);
 
     actor.send({ type: 'damage.resolved', damage: {}, healing: {} });
     expect(actor.getSnapshot().matches({ round: 'resolveSaves' })).toBe(true);
 
     const prone = { id: 'e1', source: 'b', target: 'a', description: 'prone', appliedRound: 1 };
     actor.send({ type: 'saves.resolved', effects: [prone], savesSucceeded: {} });
+    // saves → movement, which starts with the GM's NPCs
+    expect(actor.getSnapshot().matches({ round: { resolveMovement: 'npcs' } })).toBe(true);
+
+    // Players cannot move before NPCs are done: movement.resolved is ignored here.
+    actor.send({ type: 'movement.resolved' });
+    expect(actor.getSnapshot().matches({ round: { resolveMovement: 'npcs' } })).toBe(true);
+
+    actor.send({ type: 'movement.npcsMoved' });
+    expect(actor.getSnapshot().matches({ round: { resolveMovement: 'players' } })).toBe(true);
+
+    actor.send({ type: 'movement.resolved' });
     // carryover → back to assignment, round incremented, locks cleared, effect persisted
     expect(actor.getSnapshot().matches({ round: 'assignment' })).toBe(true);
     expect(actor.getSnapshot().context.round).toBe(2);
@@ -58,9 +67,10 @@ describe('combatMachine', () => {
     // Round 1: drive to the saves phase and mark a's die 15 as a successful save.
     actor.send({ type: 'combatant.lockedIn', id: 'a' });
     actor.send({ type: 'combatant.lockedIn', id: 'b' });
-    actor.send({ type: 'movement.resolved' });
     actor.send({ type: 'damage.resolved', damage: {}, healing: {} });
     actor.send({ type: 'saves.resolved', effects: [], savesSucceeded: { a: [15] } });
+    actor.send({ type: 'movement.npcsMoved' });
+    actor.send({ type: 'movement.resolved' });
 
     // Now at round 2's assignment — lastSavesSucceeded still tags the RESOLVED round (1).
     expect(actor.getSnapshot().matches({ round: 'assignment' })).toBe(true);
@@ -100,7 +110,6 @@ describe('combatMachine', () => {
     actor.send({ type: 'combatant.lockedIn', id: 'a' });
     actor.send({ type: 'combatant.lockedIn', id: 'b' });
 
-    actor.send({ type: 'movement.resolved' });
     // a: threshold 10, pool 6, PB 2. 11 damage exceeds → lose 2 dice → pool 4.
     actor.send({ type: 'damage.resolved', damage: { a: 11 }, healing: {} });
     const a = actor.getSnapshot().context.combatants.a;
@@ -121,12 +130,15 @@ describe('combatMachine', () => {
     actor.send({ type: 'combatant.lockedIn', id: 'a' });
     actor.send({ type: 'combatant.lockedIn', id: 'b' });
 
-    actor.send({ type: 'movement.resolved' });
     // 11 damage breaks a's threshold (10) → lose PB(2) → pool 0 → out of combat.
     actor.send({ type: 'damage.resolved', damage: { a: 11 }, healing: {} });
     expect(actor.getSnapshot().context.combatants.a.outOfCombat).toBe(true);
 
     actor.send({ type: 'saves.resolved', effects: [], savesSucceeded: {} });
+    // The round still finishes its movement phase before the end check.
+    expect(actor.getSnapshot().matches({ round: { resolveMovement: 'npcs' } })).toBe(true);
+    actor.send({ type: 'movement.npcsMoved' });
+    actor.send({ type: 'movement.resolved' });
     // carryover: only b active → combatShouldEnd → combatEnded (final).
     expect(actor.getSnapshot().value).toBe('combatEnded');
     expect(actor.getSnapshot().status).toBe('done');
@@ -144,9 +156,10 @@ describe('combatMachine', () => {
     actor.send({ type: 'combatant.lockedIn', id: 'b' });
 
     // 11 damage breaks a's threshold (10) → lose PB(2) → pool 0 → out of combat (downed).
-    actor.send({ type: 'movement.resolved' });
     actor.send({ type: 'damage.resolved', damage: { a: 11 }, healing: {} });
     actor.send({ type: 'saves.resolved', effects: [], savesSucceeded: {} });
+    actor.send({ type: 'movement.npcsMoved' });
+    actor.send({ type: 'movement.resolved' });
 
     // carryover → only b active → combatEnded (final) → reconcileDownedHp fires.
     expect(actor.getSnapshot().value).toBe('combatEnded');

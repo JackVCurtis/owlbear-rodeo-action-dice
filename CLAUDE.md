@@ -30,17 +30,17 @@ idle
       └─→ round                     # compound state, one iteration per round
            ├─ assignment            # hidden: players assign dice/tokens; lock in
            ├─ reveal                # all assignments become public simultaneously
-           ├─ resolveMovement       # simultaneous movement, opportunity attacks
            ├─ resolveDamage         # thresholds, healing offsets, dice attrition
            ├─ resolveSaves          # spend save dice descending; apply effects
+           ├─ resolveMovement       # compound: npcs (GM moves) → players (players move)
            └─ carryover             # persist effects; carry save+reaction dice
                 ├─(combat ongoing)→ round.assignment
                 └─(end condition)→ combatEnded    # downed-PC HP reconciliation
 ```
 
 - `assignment` completes only when every active combatant has locked in (guard over per-combatant lock flags).
-- Resolution order **Movement → Damage → Saves** is an invariant. Enforce it structurally (sequential states), never by convention.
-- Direct/forced movement from spells is the one save effect applied immediately during `resolveSaves`; all other effects/conditions persist into the next round (store in context as a persistent-effects list with round tags).
+- Resolution order **Damage → Saves → Movement** is an invariant. Enforce it structurally (sequential states), never by convention. Within `resolveMovement`, the `npcs` sub-state (GM moves monsters/NPCs) must complete before `players` (players move their characters) — also sequential sub-states, not convention.
+- Direct/forced movement from spells is the one save effect applied immediately during `resolveSaves` (so it lands before the round's voluntary movement); all other effects/conditions persist into the next round (store in context as a persistent-effects list with round tags).
 
 **`characterMachine`** (or a context slice per combatant — let the xstate-v5 skill guide actor-vs-context choice): tracks Action Dice pool, save pool, reaction carryover, hidden assignments, damage threshold, accumulated damage/healing this round, out-of-combat status, per-spell pre-rolled dice queues.
 
@@ -51,7 +51,7 @@ idle
 - Hidden values must **never** be written plainly to room metadata (readable by all clients) or routed through the GM's client. There is no trusted server-side party.
 - **DECIDED — ownership:** each combatant has an `ownerId` (an OBR player id); the **GM assigns owners at setup** (monsters/NPCs → the GM). A client controls and sees the hidden dice of only the combatants it owns; for all others it sees only commitment/lock status until reveal.
 - **DECIDED — commit–reveal:** on lock-in a client publishes `SHA-256(canonical(assignment) + salt)` as its **commitment** to room metadata (keyed per round, per combatant); on reveal it broadcasts `assignment + salt` (and mirrors the revealed round into room metadata for late joiners), and **every client verifies** the plaintext against the earlier commitment, flagging any mismatch. Salt + plaintext are persisted to `localStorage` so a refresh mid-round can still reveal. Commitments are hashes and reveal nothing; plaintext crosses the wire only at reveal.
-- **DECIDED — authority:** the **GM client runs the single authoritative `combatMachine`** and mirrors its public snapshot (phase, round, per-combatant public info, commitment/lock status) to room metadata each transition. Player clients render phase/round from that mirror and run only their own `characterMachine(s)`; a player advances the shared state only by committing (which the GM's machine consumes as `combatant.lockedIn`). Resolution (movement → damage → saves) stays GM-driven.
+- **DECIDED — authority:** the **GM client runs the single authoritative `combatMachine`** and mirrors its public snapshot (phase, round, per-combatant public info, commitment/lock status) to room metadata each transition. Player clients render phase/round from that mirror and run only their own `characterMachine(s)`; a player advances the shared state only by committing (which the GM's machine consumes as `combatant.lockedIn`). Resolution (damage → saves → movement) stays GM-driven, including advancing movement from the NPC step to the player step.
 - The commit/verify logic lives in `src/obr/` (`commit.ts` + the `CombatSync` adapter) and layers in **without touching the machines**.
 
 ## RULES SPEC (v0 — active development)
@@ -72,11 +72,12 @@ Glossary: *PB* = proficiency bonus. *Action Dice* = a character's pre-rolled hid
    - `ASSUMPTION:` The player knows their own dice values when assigning (they rolled them); values are hidden from others.
 2. **Reveal.** All dice and tokens revealed simultaneously.
 3. **Resolution, strictly in order:**
-   1. **Movement.** Simultaneous; characters may move through each other during this phase. Opportunity attacks resolve only if a Reaction die was assigned to them.
-   2. **Damage.** No hit points during combat. Each character has a **damage threshold** = `ceil(average roll of their hit die) × PB` (e.g. d8 → 5, d10 → 6). Healing received this round increases the threshold **for this round only**. If total damage received this round exceeds the threshold, the character removes `PB` Action Dice **of their choice** from their pool. A character with zero Action Dice is **out of combat**.
+   1. **Damage.** No hit points during combat. Each character has a **damage threshold** = `ceil(average roll of their hit die) × PB` (e.g. d8 → 5, d10 → 6). Healing received this round increases the threshold **for this round only**. If total damage received this round exceeds the threshold, the character removes `PB` Action Dice **of their choice** from their pool. A character with zero Action Dice is **out of combat**.
       - `ASSUMPTION:` "Exceeds" is strict (> threshold, not ≥).
       - **DECIDED:** Multiclass / mixed hit dice — use the **highest hit die** among the character's classes.
-   3. **Saves.** Targets of spells/abilities use dice from their Save pool **in descending order** (highest die first) to attempt saving throws. A Save die is **consumed only if its save succeeds**; a die used on a **failed** save, or left unused, returns to the pool and carries to the next round (so a forced save can't cost a die *and* deal damage on a failure). All spell effects and conditions (e.g. prone) roll over to the next round; the exception is **direct/forced movement**, which applies immediately.
+   2. **Saves.** Targets of spells/abilities use dice from their Save pool **in descending order** (highest die first) to attempt saving throws. A Save die is **consumed only if its save succeeds**; a die used on a **failed** save, or left unused, returns to the pool and carries to the next round (so a forced save can't cost a die *and* deal damage on a failure). All spell effects and conditions (e.g. prone) roll over to the next round; the exception is **direct/forced movement**, which applies immediately.
+   3. **Movement.** The last phase of the round. **DECIDED:** movement is **sequenced by side** — the **GM moves monsters/NPCs first**, then the **players move their characters**. Within a side, movement is simultaneous and characters may move through each other. Opportunity attacks resolve only if a Reaction die was assigned to them.
+      - `OPEN:` Movement now follows the Damage phase, so damage from an opportunity attack during movement has no Damage phase left in this round. Does it count toward this round's threshold retroactively, carry into next round's damage total, or something else? Not modeled yet — the GM adjudicates at the table.
 4. **Carryover.** **Save** dice and unused **Reaction** dice carry over to the next round — a Save die is lost only when consumed by a **successful save** (see above), so failed and unused Save dice both return to the pool.
    - **DECIDED:** Assigned-but-unused Action and Bonus Action dice are **spent regardless**; the Reaction die carries unless used, and Save dice carry unless consumed by a successful save.
 

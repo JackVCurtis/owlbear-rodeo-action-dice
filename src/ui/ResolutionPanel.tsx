@@ -4,8 +4,8 @@ import type { CombatantId, CombatantPublic, DieValue, PersistentEffect } from '.
 import type { PhaseName } from './phase';
 import type { RevealRecord } from './useHiddenDice';
 
-// GM-only resolution controls. Walks the strict Movement → Damage → Saves order the
-// combat machine enforces. Damage is sent to the machine as PUBLIC attrition (pool
+// GM-only resolution controls. Walks the strict Damage → Saves → Movement order the
+// combat machine enforces (movement itself runs GM's NPCs first, then players). Damage is sent to the machine as PUBLIC attrition (pool
 // counts); each owning client mirrors that onto its own hidden pool via the public
 // pool-count delta. Revealed assignments are shown separately by <RevealList>.
 export function ResolutionPanel({
@@ -25,8 +25,9 @@ export function ResolutionPanel({
   const active = all.filter((c) => !c.outOfCombat);
 
   const isDamage = phase === 'resolveDamage';
-  const isMovement = phase === 'resolveMovement';
   const isSaves = phase === 'resolveSaves';
+  const isNpcMovement = phase === 'resolveMovementNpcs';
+  const isPlayerMovement = phase === 'resolveMovementPlayers';
 
   const [dmg, setDmg] = useState<Record<string, string>>({});
   const [heal, setHeal] = useState<Record<string, string>>({});
@@ -116,18 +117,6 @@ export function ResolutionPanel({
     );
   }
 
-  if (isMovement) {
-    return (
-      <div className="phase">
-        <h3 className="phase__title">Movement</h3>
-        <p className="phase__hint">Simultaneous movement; opportunity attacks resolve only if a Reaction die was assigned.</p>
-        <button className="phase__go" onClick={() => send({ type: 'movement.resolved' })}>
-          Resolve Movement
-        </button>
-      </div>
-    );
-  }
-
   if (isSaves) {
     // Active combatants that revealed at least one Save die, each with its dice ordered
     // highest→lowest (Save dice are spent descending) while preserving the real index.
@@ -187,6 +176,36 @@ export function ResolutionPanel({
         </div>
         <button className="phase__go" onClick={resolveSaves}>
           Resolve Saves
+        </button>
+      </div>
+    );
+  }
+
+  if (isNpcMovement) {
+    return (
+      <div className="phase">
+        <h3 className="phase__title">Movement — NPCs</h3>
+        <p className="phase__hint">
+          Move your monsters and NPCs now; players wait. Opportunity attacks resolve only if a Reaction die was
+          assigned.
+        </p>
+        <button className="phase__go" onClick={() => send({ type: 'movement.npcsMoved' })}>
+          NPCs Moved — Players Move
+        </button>
+      </div>
+    );
+  }
+
+  if (isPlayerMovement) {
+    return (
+      <div className="phase">
+        <h3 className="phase__title">Movement — Players</h3>
+        <p className="phase__hint">
+          Players move their characters now (simultaneous; they may move through each other). Opportunity attacks
+          resolve only if a Reaction die was assigned.
+        </p>
+        <button className="phase__go" onClick={() => send({ type: 'movement.resolved' })}>
+          Movement Complete — Next Round
         </button>
       </div>
     );

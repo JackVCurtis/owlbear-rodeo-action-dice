@@ -5,7 +5,16 @@ import { DiceTray } from './DiceTray';
 import { ResolutionPanel } from './ResolutionPanel';
 import { RevealList } from './RevealList';
 import { RosterSetup } from './RosterSetup';
-import { describePhase, isAssignment, isEnded, isResolving, isSetup, type PhaseName } from './phase';
+import {
+  describePhase,
+  isAssignment,
+  isEnded,
+  isNpcMovement,
+  isPlayerMovement,
+  isResolving,
+  isSetup,
+  type PhaseName,
+} from './phase';
 import { useHiddenDice } from './useHiddenDice';
 
 // Shared combat surface for both roles. The GM feeds it live machine state (and the
@@ -91,6 +100,12 @@ export function CombatBoard({
           <RevealList combatants={combatants} reveals={reveals} broken={broken} />
           {isGM && send && (
             <ResolutionPanel phase={phase} round={round} combatants={combatants} reveals={reveals} send={send} />
+          )}
+          {!isGM && isNpcMovement(phase) && (
+            <p className="app__hint">The GM is moving monsters and NPCs. Wait to move your character.</p>
+          )}
+          {!isGM && isPlayerMovement(phase) && (
+            <p className="app__hint">Move your character now. The GM will start the next round when everyone is done.</p>
           )}
         </section>
       )}

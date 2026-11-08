@@ -8,26 +8,24 @@ export type PhaseName =
   | 'idle'
   | 'assignment'
   | 'reveal'
-  | 'resolveMovement'
   | 'resolveDamage'
   | 'resolveSaves'
+  | 'resolveMovementNpcs'
+  | 'resolveMovementPlayers'
   | 'carryover'
   | 'combatEnded';
 
-const ROUND_PHASES = [
-  'assignment',
-  'reveal',
-  'resolveMovement',
-  'resolveDamage',
-  'resolveSaves',
-  'carryover',
-] as const;
+const FLAT_ROUND_PHASES = ['assignment', 'reveal', 'resolveDamage', 'resolveSaves', 'carryover'] as const;
 
-// Flatten the GM's combat snapshot into a single PhaseName for mirroring.
+// Flatten the GM's combat snapshot into a single PhaseName for mirroring. The
+// movement phase is a compound state (npcs → players), so its two sub-states map
+// to two flat names.
 export function phaseName(snapshot: SnapshotFrom<typeof combatMachine>): PhaseName {
   if (snapshot.matches('idle')) return 'idle';
   if (snapshot.matches('combatEnded')) return 'combatEnded';
-  for (const p of ROUND_PHASES) {
+  if (snapshot.matches({ round: { resolveMovement: 'npcs' } })) return 'resolveMovementNpcs';
+  if (snapshot.matches({ round: { resolveMovement: 'players' } })) return 'resolveMovementPlayers';
+  for (const p of FLAT_ROUND_PHASES) {
     if (snapshot.matches({ round: p })) return p;
   }
   return 'idle';
@@ -36,14 +34,17 @@ export function phaseName(snapshot: SnapshotFrom<typeof combatMachine>): PhaseNa
 export const isSetup = (p: PhaseName): boolean => p === 'idle';
 export const isAssignment = (p: PhaseName): boolean => p === 'assignment';
 export const isEnded = (p: PhaseName): boolean => p === 'combatEnded';
+export const isNpcMovement = (p: PhaseName): boolean => p === 'resolveMovementNpcs';
+export const isPlayerMovement = (p: PhaseName): boolean => p === 'resolveMovementPlayers';
 
 // Every phase after assignment locks: values are revealed and resolution runs.
 export function isResolving(p: PhaseName): boolean {
   return (
     p === 'reveal' ||
-    p === 'resolveMovement' ||
     p === 'resolveDamage' ||
     p === 'resolveSaves' ||
+    p === 'resolveMovementNpcs' ||
+    p === 'resolveMovementPlayers' ||
     p === 'carryover'
   );
 }
@@ -57,12 +58,14 @@ export function describePhase(p: PhaseName): string {
       return 'Assignment (hidden)';
     case 'reveal':
       return 'Reveal';
-    case 'resolveMovement':
-      return 'Resolving: Movement';
     case 'resolveDamage':
       return 'Resolving: Damage';
     case 'resolveSaves':
       return 'Resolving: Saves';
+    case 'resolveMovementNpcs':
+      return 'Resolving: Movement (GM moves NPCs)';
+    case 'resolveMovementPlayers':
+      return 'Resolving: Movement (players move)';
     case 'carryover':
       return 'Carryover';
     case 'combatEnded':

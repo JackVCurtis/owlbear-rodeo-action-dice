@@ -33,13 +33,15 @@ export function emptyAssignment(): Assignment {
 }
 
 // The ordered resolution phases within a round. Order is an invariant
-// (Movement → Damage → Saves) enforced structurally by combatMachine.
+// (Damage → Saves → Movement, with NPCs moving before players) enforced
+// structurally by combatMachine.
 export type RoundPhase =
   | 'assignment'
   | 'reveal'
-  | 'resolveMovement'
   | 'resolveDamage'
   | 'resolveSaves'
+  | 'resolveMovementNpcs'
+  | 'resolveMovementPlayers'
   | 'carryover';
 
 // A spell effect / condition that persists across rounds (tagged with the round
